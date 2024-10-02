@@ -138,18 +138,50 @@ app.delete("/api/deletePost", (req, res) => {
   });
 });
 
-const ws = new WebSocket.Server({
+const wsServer = new WebSocket.Server({
   port: 8000,
 });
 
-ws.on("error", console.error);
+wsServer.on("error", console.error);
 
-ws.on("connection", (ws) => {
+wsServer.on("connection", (ws, req) => {
+  console.log("Client connected");
   ws.on("message", (data) => {
-    console.log("received %s", data);
+    console.log("websocket connection active", data);
+    /* const index = req.url!.indexOf("?");
+    const urlParam = req.url?.substring(index + 1);
+    const blogIdFromParam = urlParam!.split("="); */
+
+    fs.readFile("./data/blogData.json", "utf-8", (error, readFileData) => {
+      // If error return error response
+      if (error) {
+        return ws.send("Operation failed. Please try again.");
+      }
+
+      // Parse contents of file to JSON
+      const blogDataFromFile: BlogDataStructureFromFile[] =
+        JSON.parse(readFileData);
+
+      console.log(blogDataFromFile);
+
+      /* const findBlogForLiveChanges = blogDataFromFile.filter(
+        (blog) => blog.id === blogIdFromParam[1]
+      ); */
+
+      //console.log(findBlogForLiveChanges);
+
+      // Send data to all connected ws clients
+      wsServer.clients.forEach(function each(client) {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(blogDataFromFile));
+        }
+      });
+    });
   });
 
-  ws.send("hello from ws");
+  ws.on("close", () => {
+    console.log("Client disconnected");
+  });
 });
 
 app.listen(PORT, () => {
